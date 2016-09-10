@@ -1,5 +1,6 @@
-#! /usr/bin/env bash
+#!/bin/sh -e
 # Copyright (c) 2011-2015, ARM Limited
+# Changes copyright (c) 2016 Stephen Arnold <nerdboy@gentoo.org>
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-set -e
 set -x
 set -u
 set -o pipefail

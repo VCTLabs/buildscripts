@@ -1,6 +1,7 @@
-#! /usr/bin/env bash
+#!/bin/sh -e
 # Copyright (c) 2011-2015, ARM Limited
 # All rights reserved.
+# Changes copyright (c) 2016 Stephen Arnold <nerdboy@gentoo.org>
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -26,7 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-set -e
 set -x
 set -u
 set -o pipefail
@@ -88,8 +88,9 @@ skip_gdb_with_python=no
 skip_mingw32_gdb_with_python=no
 build_type=
 build_tools=
+skip_jansson=yes
 
-MULTILIB_LIST="--disable-multilib --with-arch=armv7-a --with-tune=cortex-a9 --with-fpu=neon --with-float=hard --with-mode=thumb"
+MULTILIB_LIST="--with-newlib --disable-multilib --disable-libsanitizer --with-arch=armv7e-m --with-tune=cortex-m4 --with-float-abi=hard --with-fpu=fpv4-sp-d16 --with-mode=thumb"
 
 for ac_arg; do
     case $ac_arg in
@@ -215,9 +216,22 @@ if [ "x$is_ppa_release" != "xyes" ]; then
                     --with-cloog=$BUILDDIR_NATIVE/host-libs/usr
                     --with-libelf=$BUILDDIR_NATIVE/host-libs/usr "
 
-  BINUTILS_CONFIG_OPTS=" --build=$BUILD --host=$HOST_NATIVE "
+  BINUTILS_CONFIG_OPTS=" --build=$BUILD --host=$HOST_NATIVE 
+                         --enable-poison-system-directories
+			 --enable-gold --enable-plugins
+			 --enable-secureplt
+			 --enable-threads
+			 --enable-relro
+			 --disable-multilib
+			 --disable-libsanitizer 
+			 --enable-install-libiberty "
 
-  NEWLIB_CONFIG_OPTS=" --build=$BUILD --host=$HOST_NATIVE "
+  NEWLIB_CONFIG_OPTS=" --build=$BUILD --host=$HOST_NATIVE
+                       --enable-newlib-nano-formatted-io
+		       --enable-newlib-nano-malloc
+		       --enable-newlib-mb --enable-nls
+		       --disable-newlib-supplied-syscalls
+		       --enable-newlib-multithread "
 
   GDB_CONFIG_OPTS=" --build=$BUILD --host=$HOST_NATIVE
                     --with-libexpat-prefix=$BUILDDIR_NATIVE/host-libs/usr "
@@ -233,41 +247,46 @@ rm -rf $PACKAGEDIR && mkdir -p $PACKAGEDIR
 
 cd $SRCDIR
 
-echo Task [Vita-0] /$HOST_NATIVE/vita-toolchain/
-rm -rf $BUILDDIR_NATIVE/vita-toolchain && mkdir -p $BUILDDIR_NATIVE/vita-toolchain
-pushd $BUILDDIR_NATIVE/vita-toolchain
+echo Task [Vita-0] /$HOST_NATIVE/$VITA_TOOLCHAIN/
+rm -rf $BUILDDIR_NATIVE/$VITA_TOOLCHAIN && mkdir -p $BUILDDIR_NATIVE/$VITA_TOOLCHAIN
+pushd $BUILDDIR_NATIVE/$VITA_TOOLCHAIN
 mkdir install
+if [ "x$skip_jansson" != "xyes" ] ; then
 mkdir build-jansson && cd build-jansson
-$SRCDIR/$JANSSON/configure --disable-shared --enable-static --prefix=$BUILDDIR_NATIVE/vita-toolchain/install
+$SRCDIR/$JANSSON/configure --disable-shared --enable-static --prefix=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install
 make
 make install
+fi
 cd ..
 mkdir build-libelf && cd build-libelf
-$SRCDIR/$LIBELF/configure --disable-shared --enable-static --prefix=$BUILDDIR_NATIVE/vita-toolchain/install
+$SRCDIR/$LIBELF/configure --disable-shared --enable-static --prefix=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install
 make
 make install
 cd ..
 mkdir build-zlib && cd build-zlib
-cmake $SRCDIR/$ZLIB -DCMAKE_INSTALL_PREFIX=$BUILDDIR_NATIVE/vita-toolchain/install
+cmake $SRCDIR/$ZLIB -DCMAKE_INSTALL_PREFIX=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install
 make
 make install
 cd ..
 mkdir build-libzip && cd build-libzip
-$SRCDIR/$LIBZIP/configure --disable-shared --enable-static --prefix=$BUILDDIR_NATIVE/vita-toolchain/install
+$SRCDIR/$LIBZIP/configure --disable-shared --enable-static --prefix=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install
 make
 make install
 cd ..
-mkdir build-vita-toolchain && cd build-vita-toolchain
+mkdir build-$VITA_TOOLCHAIN && cd build-$VITA_TOOLCHAIN
+if [ "x$skip_jansson" != "xyes" ] ; then
+DEFAULT_JANSSON="-DJansson_INCLUDE_DIR=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/include/
+                 -DJansson_LIBRARY=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/lib/libjansson.a"
+fi
 cmake $SRCDIR/$VITA_TOOLCHAIN \
-	-DJansson_INCLUDE_DIR=$BUILDDIR_NATIVE/vita-toolchain/install/include/ \
-	-DJansson_LIBRARY=$BUILDDIR_NATIVE/vita-toolchain/install/lib/libjansson.a \
-	-Dlibelf_INCLUDE_DIR=$BUILDDIR_NATIVE/vita-toolchain/install/include/ \
-	-Dlibelf_LIBRARY=$BUILDDIR_NATIVE/vita-toolchain/install/lib/libelf.a \
-	-Dzlib_INCLUDE_DIR=$BUILDDIR_NATIVE/vita-toolchain/install/include/ \
-	-Dzlib_LIBRARY=$BUILDDIR_NATIVE/vita-toolchain/install/lib/libz.a \
-	-Dlibzip_INCLUDE_DIR=$BUILDDIR_NATIVE/vita-toolchain/install/include/ \
-	-Dlibzip_CONFIG_INCLUDE_DIR=$BUILDDIR_NATIVE/vita-toolchain/install/lib/libzip/include/ \
-	-Dlibzip_LIBRARY=$BUILDDIR_NATIVE/vita-toolchain/install/lib/libzip.a \
+	$DEFAULT_JANSSON \
+	-Dlibelf_INCLUDE_DIR=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/include/ \
+	-Dlibelf_LIBRARY=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/lib/libelf.a \
+	-Dzlib_INCLUDE_DIR=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/include/ \
+	-Dzlib_LIBRARY=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/lib/libz.a \
+	-Dlibzip_INCLUDE_DIR=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/include/ \
+	-Dlibzip_CONFIG_INCLUDE_DIR=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/lib/libzip/include/ \
+	-Dlibzip_LIBRARY=$BUILDDIR_NATIVE/$VITA_TOOLCHAIN/install/lib/libzip.a \
 	-DUSE_BUNDLED_ENDIAN_H=ON \
 	-DCMAKE_INSTALL_PREFIX=$INSTALLDIR_NATIVE \
 	$DEFAULT_JSON
@@ -290,7 +309,6 @@ $SRCDIR/$BINUTILS/configure  \
     --mandir=$INSTALLDIR_NATIVE_DOC/man \
     --htmldir=$INSTALLDIR_NATIVE_DOC/html \
     --pdfdir=$INSTALLDIR_NATIVE_DOC/pdf \
-    --disable-nls \
     --disable-werror \
     --enable-interwork \
     --enable-plugins \
@@ -604,51 +622,51 @@ tar xf $PACKAGEDIR/$PACKAGE_NAME_NATIVE.tar.bz2 --bzip2
 rm $INSTALL_PACKAGE_NAME
 popd
 
-echo Task [Vita-2] /$HOST_MINGW/vita-toolchain/
-rm -rf $BUILDDIR_MINGW/vita-toolchain && mkdir -p $BUILDDIR_MINGW/vita-toolchain
-pushd $BUILDDIR_MINGW/vita-toolchain
+echo Task [Vita-2] /$HOST_MINGW/$VITA_TOOLCHAIN/
+rm -rf $BUILDDIR_MINGW/$VITA_TOOLCHAIN && mkdir -p $BUILDDIR_MINGW/$VITA_TOOLCHAIN
+pushd $BUILDDIR_MINGW/$VITA_TOOLCHAIN
 mkdir install
 mkdir build-jansson && cd build-jansson
-$SRCDIR/$JANSSON/configure --disable-shared --enable-static --build=$BUILD --host=$HOST_MINGW --prefix=$BUILDDIR_MINGW/vita-toolchain/install
+$SRCDIR/$JANSSON/configure --disable-shared --enable-static --build=$BUILD --host=$HOST_MINGW --prefix=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install
 make
 make install
 cd ..
 
 mkdir build-libelf && cd build-libelf
 # need to explicitly specify CC because configure script is broken
-CC=$HOST_MINGW-gcc $SRCDIR/$LIBELF/configure --disable-shared --enable-static --build=$BUILD --host=$HOST_MINGW --prefix=$BUILDDIR_MINGW/vita-toolchain/install
+CC=$HOST_MINGW-gcc $SRCDIR/$LIBELF/configure --disable-shared --enable-static --build=$BUILD --host=$HOST_MINGW --prefix=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install
 make
 make install
 # need to run ranlib manually
-$HOST_MINGW-ranlib $BUILDDIR_MINGW/vita-toolchain/install/lib/libelf.a
+$HOST_MINGW-ranlib $BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libelf.a
 cd ..
 
 mkdir build-zlib && cd build-zlib
-cmake $SRCDIR/$ZLIB -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/mingw-toolchain.cmake -DCMAKE_INSTALL_PREFIX=$BUILDDIR_MINGW/vita-toolchain/install
+cmake $SRCDIR/$ZLIB -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/mingw-toolchain.cmake -DCMAKE_INSTALL_PREFIX=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install
 make
 make install
-cp $BUILDDIR_MINGW/vita-toolchain/install/lib/libzlibstatic.a $BUILDDIR_MINGW/vita-toolchain/install/lib/libz.a
+cp $BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libzlibstatic.a $BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libz.a
 cd ..
 
 mkdir build-libzip && cd build-libzip
-cmake $SRCDIR/$LIBZIP -DCMAKE_C_FLAGS="-DZIP_STATIC" -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/mingw-toolchain.cmake -DZLIB_ROOT=$BUILDDIR_MINGW/vita-toolchain/install/ -DZLIB_INCLUDE_DIR=$BUILDDIR_MINGW/vita-toolchain/install/include -DZLIB_LIBRARY=$BUILDDIR_MINGW/vita-toolchain/install/lib/libz.a -DCMAKE_INSTALL_PREFIX=$BUILDDIR_MINGW/vita-toolchain/install
+cmake $SRCDIR/$LIBZIP -DCMAKE_C_FLAGS="-DZIP_STATIC" -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/mingw-toolchain.cmake -DZLIB_ROOT=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/ -DZLIB_INCLUDE_DIR=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/include -DZLIB_LIBRARY=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libz.a -DCMAKE_INSTALL_PREFIX=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install
 make
 make install
 cd ..
 
-mkdir build-vita-toolchain && cd build-vita-toolchain
+mkdir build-$VITA_TOOLCHAIN && cd build-$VITA_TOOLCHAIN
 cmake $SRCDIR/$VITA_TOOLCHAIN \
         -DZIP_STATIC=ON \
         -DCMAKE_TOOLCHAIN_FILE=$SRCDIR/mingw-toolchain.cmake \
-        -DJansson_INCLUDE_DIR=$BUILDDIR_MINGW/vita-toolchain/install/include/ \
-        -DJansson_LIBRARY=$BUILDDIR_MINGW/vita-toolchain/install/lib/libjansson.a \
-        -Dlibelf_INCLUDE_DIR=$BUILDDIR_MINGW/vita-toolchain/install/include/ \
-        -Dlibelf_LIBRARY=$BUILDDIR_MINGW/vita-toolchain/install/lib/libelf.a \
-        -Dzlib_INCLUDE_DIR=$BUILDDIR_MINGW/vita-toolchain/install/include/ \
-        -Dzlib_LIBRARY=$BUILDDIR_MINGW/vita-toolchain/install/lib/libz.a \
-        -Dlibzip_INCLUDE_DIR=$BUILDDIR_MINGW/vita-toolchain/install/include/ \
-        -Dlibzip_CONFIG_INCLUDE_DIR=$BUILDDIR_MINGW/vita-toolchain/install/lib/libzip/include/ \
-        -Dlibzip_LIBRARY=$BUILDDIR_MINGW/vita-toolchain/install/lib/libzip.a \
+        -DJansson_INCLUDE_DIR=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/include/ \
+        -DJansson_LIBRARY=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libjansson.a \
+        -Dlibelf_INCLUDE_DIR=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/include/ \
+        -Dlibelf_LIBRARY=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libelf.a \
+        -Dzlib_INCLUDE_DIR=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/include/ \
+        -Dzlib_LIBRARY=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libz.a \
+        -Dlibzip_INCLUDE_DIR=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/include/ \
+        -Dlibzip_CONFIG_INCLUDE_DIR=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libzip/include/ \
+        -Dlibzip_LIBRARY=$BUILDDIR_MINGW/$VITA_TOOLCHAIN/install/lib/libzip.a \
         -DCMAKE_INSTALL_PREFIX=$INSTALLDIR_MINGW \
         $DEFAULT_JSON
 make

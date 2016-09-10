@@ -1,9 +1,10 @@
 # Copyright (c) 2011-2015, ARM Limited
 # All rights reserved.
-# 
+# Changes copyright (c) 2016 Stephen Arnold <nerdboy@gentoo.org>
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 #     * Redistributions of source code must retain the above copyright notice,
 #       this list of conditions and the following disclaimer.
 #     * Redistributions in binary form must reproduce the above copyright
@@ -80,7 +81,7 @@ clean_env () {
     local var_list
     local var
     var_list=`export|grep "^declare -x"|sed -e "s/declare -x //"|cut -d"=" -f1`
-    
+
     for var in $var_list ; do
         case $var in
             DEJAGNU|\
@@ -257,27 +258,32 @@ INSTALLDIR_MINGW_DOC=$ROOT/install-mingw/share/doc/gcc-arm-vita-eabi
 PACKAGEDIR=$ROOT/pkg
 
 BINUTILS=binutils
-CLOOG=cloog-0.18.0
-EXPAT=expat-2.0.1
+BINUTILS_VER=2.26.1
+CLOOG=cloog-0.18.4
+EXPAT=expat-2.2.0
 GCC=gcc
+GCC_VER=5.4.0
+PATCH_VER=1.0
+PIE_VER=0.6.5
 GDB=gdb
-GMP=gmp-4.3.2
+GDB_VER=7.11.1
+GMP=gmp-6.1.1
 NEWLIB_NANO=newlib
 SAMPLES=samples
 LIBELF=libelf-0.8.13
 LIBICONV=libiconv-1.14
-MPC=mpc-0.8.1
-MPFR=mpfr-2.4.2
+MPC=mpc-1.0.3
+MPFR=mpfr-3.1.4
 NEWLIB=newlib
-ISL=isl-0.11.1
+NEWLIB_VER=2.4.0
+ISL=isl-0.17.1
 ZLIB=zlib-1.2.8
 INSTALLATION=installation
 SAMPLES=samples
 BUILD_MANUAL=build-manual
 JANSSON=jansson-2.7
-LIBELF=libelf-0.8.13
 LIBZIP=libzip-1.1.3
-VITA_TOOLCHAIN=vita-toolchain
+VITA_TOOLCHAIN=cortex-m4f-toolchain
 VITA_HEADERS=vita-headers
 PTHREAD_EMBEDDED=pthread-embedded
 
@@ -314,12 +320,14 @@ README_FILE=readme.txt
 LICENSE_FILE=license.txt
 SAMPLES_DOS_FILES=$SAMPLES/readme.txt
 BUILD_MANUAL_FILE=How-to-build-toolchain.pdf
-GCC_VER=`cat $SRCDIR/$GCC/gcc/BASE-VER`
-GCC_VER_NAME=`echo $GCC_VER | cut -d'.' -f1,2 | sed -e 's/\./_/g'`
-GCC_VER_SHORT=`echo $GCC_VER_NAME | sed -e 's/_/\./g'`
+if [ -z $GCC_VER ] ; then
+	GCC_VER=`cat $SRCDIR/$GCC/gcc/BASE-VER`
+	GCC_VER_NAME=`echo $GCC_VER | cut -d'.' -f1,2 | sed -e 's/\./_/g'`
+	GCC_VER_SHORT=`echo $GCC_VER_NAME | sed -e 's/_/\./g'`
+fi
 HOST_MINGW=i686-w64-mingw32
 HOST_MINGW_TOOL=i686-w64-mingw32
-TARGET=arm-vita-eabi
+TARGET=armv7m-hardfloat-eabi
 ENV_CFLAGS=
 ENV_CPPFLAGS=
 ENV_LDFLAGS=
@@ -329,8 +337,8 @@ GDB_CONFIG_OPTS=
 NEWLIB_CONFIG_OPTS=
 
 
-PKGVERSION="GNU Tools for ARM Embedded Processors"
-BUGURL=""
+PKGVERSION="Hardened GNU Tools for ARM Embedded Processors"
+BUGURL="https://github.com/VCTLabs/buildscripts/issues"
 
 # Set variables according to real environment to make this script can run
 # on Ubuntu and Mac OS X.
